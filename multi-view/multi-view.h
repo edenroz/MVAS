@@ -36,7 +36,7 @@
 #define __KERNEL_MEMORY_MAP_MODULE_H
 
 #include <linux/ioctl.h>
-#include <mv_ioctl.h>
+#include "mv_ioctl.h"
 
 #ifndef HAVE_FAULT_TYPES
 #define HAVE_FAULT_TYPES
