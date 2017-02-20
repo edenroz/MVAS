@@ -50,7 +50,7 @@ unload:
 	./unload.sh
 
 run:
-	cat /sys/module/multi_view_integrated/parameters/the_hook > /sys/module/schedule_hook/parameters/the_hook
+	cat /sys/module/multi_view/parameters/the_hook > /sys/module/schedule_hook/parameters/the_hook
 
 shutdown:
 	echo '0' > /sys/module/schedule_hook/parameters/the_hook
