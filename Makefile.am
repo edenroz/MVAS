@@ -49,6 +49,7 @@ load:
 unload:
 	./unload.sh
 
+
 run:
 	cat /sys/module/multi_view/parameters/the_hook > /sys/module/schedule_hook/parameters/the_hook
 
