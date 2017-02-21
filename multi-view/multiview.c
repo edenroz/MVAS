@@ -123,6 +123,7 @@ unsigned long sys_ni_syscall_addr = SNS_ADDR; //0xffffffff8107e720; //0xffffffff
 asmlinkage unsigned long (*sys_munmap_addr)(void *addr, size_t length) = SMU_ADDR;
 
 void release_sibling_view(void** pgd_entry);
+void catch_pte_fault(void * fault_address);
 
 asmlinkage long sys_munmap_wrapper(void *addr, size_t length){
 
@@ -789,7 +790,7 @@ int multi_view_page_fault(struct pt_regs* regs, long error_code, long realign_mo
 				return WATCHDOG_NORMAL_FAULT;
 			}
 			//empty zero memory fault - pass it to the classical do_page_fault handler
-
+            catch_pte_fault((void *) target_address);//my_patch
 
 			if( ((ulong)ancestor_pd[PDE(target_address)] & 0x081) ){
 
@@ -905,7 +906,8 @@ ws_page_fault:
 			}
 
 			MV_FAULT_DEBUG
-			//printk("this fault is caused by multiviews - about to return %d\n", WATCHDOG_FICTITIOUS_FAULT);
+			printk("this fault is caused by multiviews - about to return %d\n", WATCHDOG_FICTITIOUS_FAULT);
+            //catch_pte_fault((void *) target_address);//my_patch
 
 			//release sibling view lock
 			spin_unlock(&lock[i]);
@@ -928,7 +930,36 @@ ws_page_fault:
 //to the multi_view_page_falut wrapper
 EXPORT_SYMBOL(multi_view_page_fault);
 
+void catch_pte_fault(void * fault_address)
+{
+	void ** ancestor_pml4;
+	void ** ancestor_pdp;
+	void ** ancestor_pd;
+	void ** ancestor_page;
 
+	int i = 0;
+	ancestor_pml4 = (void**)current->mm->pgd;
+	ancestor_pdp = __va((ulong)ancestor_pml4[PML4(fault_address)] & 0xfffffffffffff000); 		
+	ancestor_pd = __va((ulong)ancestor_pdp[PDP(fault_address)] & 0xfffffffffffff000); 		
+
+    printk("catch_pte_fault fault addr %p\n", fault_address);
+	printk("catch_pte_fault PML4 entry is %p\n",ancestor_pml4[PML4(fault_address)]);
+	printk("catch_pte_fault PDP entry is %p\n",ancestor_pdp[PDP(fault_address)]);
+	printk("catch_pte_fault PDE entry is %p\n",ancestor_pd[PDE(fault_address)]);
+
+    printk("catch_pte_fault tables indexes are: %d - %d - %d - %d\n",PML4(fault_address),PDP(fault_address),PDE(fault_address),PTE(fault_address));
+
+
+    for ( i = 0; i < PTE(fault_address); ++i)
+    {
+		ancestor_page = __va((ulong)ancestor_pd[i] & 0xfffffffffffff000); 
+		printk("catch_pte pagina value %p\n",ancestor_page[i]);		
+    }
+
+    return;
+
+
+}
 
 /******************************
 * any setup stuff for operations by the multi-view device file
