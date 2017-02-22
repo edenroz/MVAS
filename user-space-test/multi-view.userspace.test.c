@@ -8,7 +8,7 @@
 #include <sys/mman.h>
 #include <pthread.h>
 #include <errno.h>//debug
-	
+#include <sched.h>
 
 #define NUM_THREADS 4
 
@@ -62,8 +62,8 @@ repeat_fault:
 			ptr[0]='a';
 			ptr += (3*4096);
 
-			sleep(6);
-	
+			sleep(3);
+			sched_yield();	
 			goto repeat_fault;
 
 			

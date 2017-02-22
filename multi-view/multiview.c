@@ -43,6 +43,7 @@
 #include <linux/spinlock.h>
 #include <asm/tlbflush.h>
 #include <asm/page.h>
+#include <asm/pgtable.h>//mine
 #include <asm/cacheflush.h>
 #include <linux/uaccess.h>
 #include <linux/syscalls.h>
@@ -371,6 +372,43 @@ static long multi_view_ioctl(struct file *filp, unsigned int cmd, unsigned long 
 
         switch (cmd) {
 
+        case IOCTL_CHECKPOINT_PID:
+
+                DEBUG
+                printk("%s: setting up the PID to checkpoint: %lu\n",KBUILD_MODNAME,arg);
+
+                if (arg <= 0) return -EINVAL;
+
+                mutex_lock(&ts_thread_register);
+
+		//cannot setup a different PID if some thread (running or waiting) of another process 
+		//is still in multi-view mode
+		//we simply tell the device is currently busy
+
+                for (i = 0; i < MV_THREADS; i++) {
+                        if(ts_threads[i] != -1){
+				mutex_unlock(&ts_thread_register);
+				return -EBUSY;
+			}
+                }
+
+                //target_process = arg;
+                //Start Checkpointing
+
+
+
+
+
+
+
+
+
+
+                mutex_unlock(&ts_thread_register);
+			
+		return 0;
+
+                break;
 
         case IOCTL_SETUP_PID:
 
@@ -934,31 +972,80 @@ void catch_pte_fault(void * fault_address)
 {
 	void ** ancestor_pml4;
 	void ** ancestor_pdp;
-	void ** ancestor_pd;
-	void ** ancestor_page;
+	void ** ancestor_pde;
+	void ** scanned_pte;
+	void ** ancestor_pte;
 
 	int i = 0;
+	//int j = 0;	
 	ancestor_pml4 = (void**)current->mm->pgd;
 	ancestor_pdp = __va((ulong)ancestor_pml4[PML4(fault_address)] & 0xfffffffffffff000); 		
-	ancestor_pd = __va((ulong)ancestor_pdp[PDP(fault_address)] & 0xfffffffffffff000); 		
+	ancestor_pde = __va((ulong)ancestor_pdp[PDP(fault_address)] & 0xfffffffffffff000); 		
+	ancestor_pte = __va((ulong)ancestor_pde[PDE(fault_address)] & 0xfffffffffffff000); 		
 
     printk("catch_pte_fault fault addr %p\n", fault_address);
 	printk("catch_pte_fault PML4 entry is %p\n",ancestor_pml4[PML4(fault_address)]);
 	printk("catch_pte_fault PDP entry is %p\n",ancestor_pdp[PDP(fault_address)]);
-	printk("catch_pte_fault PDE entry is %p\n",ancestor_pd[PDE(fault_address)]);
+	printk("catch_pte_fault PDE entry is %p\n",ancestor_pde[PDE(fault_address)]);
+	printk("catch_pte_fault PTE entry is %p\n",ancestor_pte[PTE(fault_address)]);
 
     printk("catch_pte_fault tables indexes are: %d - %d - %d - %d\n",PML4(fault_address),PDP(fault_address),PDE(fault_address),PTE(fault_address));
+    
+    //printk("catch_pte_fault:PGDIR_SIZE %d -PTRS_PER_PGD %d -\n",PGDIR_SIZE,PTRS_PER_PGD);
+    //printk("catch_pte_fault:PMD_SIZE %d -PTRS_PER_PMD %d -\n",PMD_SIZE,PTRS_PER_PMD);
+    //printk("catch_pte_fault:PAGE_SIZE %d -PTRS_PER_PTE %d -\n",PAGE_SIZE,PTRS_PER_PTE);
 
+	for ( i = 0; i <= PTRS_PER_PTE ; ++i) //PTE(fault_address)
+	{
+		scanned_pte = __va((ulong)ancestor_pde[i] & 0xfffffffffffff000);
+		if ( scanned_pte[i] != NULL )
+			//printk("Slot PTE %d : %p\n",i, scanned_pte[i]);
+			printk("Slot PTE %d : %p , contenuto %s\n",i, scanned_pte[i],&scanned_pte[i]);
 
-    for ( i = 0; i < PTE(fault_address); ++i)
+	//	if ( i == PTE(fault_address)) {
+	//		printk("Fault on index %d\n",PTE(fault_address));				
+	}	
+/*    for ( i = 0; i <= PTRS_PER_PMD ; ++i) //PTE(fault_address)
     {
-		ancestor_page = __va((ulong)ancestor_pd[i] & 0xfffffffffffff000); 
-		printk("catch_pte pagina value %p\n",ancestor_page[i]);		
-    }
+		scanned_pdp = __va((ulong)ancestor_pdp[i] & 0xfffffffffffff000);
+		if ( scanned_pdp[i] != NULL )
+			printk("Slot %d : %p\n",i,scanned_pdp[i]);	
+		if ( i == PDP(fault_address)) {
+			printk("Fault on index %d\n",PDP(fault_address));	
+
+    		for ( j = 0; j <= PTRS_PER_PTE ; ++j) //PTE(fault_address)
+    		{
+
+				scanned_pdp = __va((ulong)ancestor_pde[j] & 0xfffffffffffff000);
+				if ( scanned_pdp[j] != NULL )
+					printk("Subslot %d : %s\n",j,&scanned_pdp[j]);	
+			}	
+		
+		}   	
+		// scanned_page = __va((ulong)ancestor_pde[PDE(fault_address)] & 0xfffffffffffff000); 
+		// if ( scanned_page[i] != NULL )
+		// 	printk("%d catch_pte pagina address: %p\n",i,scanned_page[i]);		
+    }*/
 
     return;
-
-
+/*         pgd_t *pgd;
+         pmd_t *pmd;
+         pte_t *ptep, pte;
+ 
+         pgd = pgd_offset(mm, address);
+         if (pgd_none(*pgd) || pgd_bad(*pgd))
+                 goto out;
+ 
+         pmd = pmd_offset(pgd, address);
+         if (pmd_none(*pmd) || pmd_bad(*pmd))
+                 goto out;
+ 
+         ptep = pte_offset(pmd, address);
+         if (!ptep)
+                 goto out;
+ 
+         pte = *ptep;
+*/
 }
 
 /******************************

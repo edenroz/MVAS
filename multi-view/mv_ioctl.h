@@ -10,4 +10,5 @@
 #define IOCTL_SHUTDOWN_PID _IOW(MV_IOCTL_MAGIC, 3, unsigned long ) 
 #define IOCTL_SHUTDOWN_ACK _IOW(MV_IOCTL_MAGIC, 4, unsigned long ) 
 #define IOCTL_SHUTDOWN_VIEWS _IOW(MV_IOCTL_MAGIC, 5, unsigned long ) 
+#define IOCTL_CHECKPOINT_PID _IOW(MV_IOCTL_MAGIC, 6, unsigned long ) 
 

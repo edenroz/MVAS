@@ -120,6 +120,10 @@ retry:
 
 	sleep(AP);
 
+	printf("asking for checkpoint\n");	
+	ret = ioctl(fd, IOCTL_CHECKPOINT_PID, pid);
+	printf("asking for checkpoint returned value %d\n",ret);	
+
 	goto restart;
 
 	return 0;
