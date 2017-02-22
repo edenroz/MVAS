@@ -418,24 +418,6 @@ static long multi_view_ioctl(struct file *filp, unsigned int cmd, unsigned long 
 	//int j = 0;	
 				scanned_pml4 = (void**)t_mm->pgd;
 
-	// ancestor_pdp = __va((ulong)ancestor_pml4[PML4(fault_address)] & 0xfffffffffffff000); 		
-	// ancestor_pde = __va((ulong)ancestor_pdp[PDP(fault_address)] & 0xfffffffffffff000); 		
-	// ancestor_pte = __va((ulong)ancestor_pde[PDE(fault_address)] & 0xfffffffffffff000); 		
-
- //    printk("catch_pte_fault fault addr %p\n", fault_address);
-	// printk("catch_pte_fault PML4 Base is %p\n",ancestor_pml4);
-
-	// printk("catch_pte_fault PML4 entry is %p\n",ancestor_pml4[PML4(fault_address)]);
-	// printk("catch_pte_fault PDP entry is %p\n",ancestor_pdp[PDP(fault_address)]);
-	// printk("catch_pte_fault PDE entry is %p\n",ancestor_pde[PDE(fault_address)]);
-	// printk("catch_pte_fault PTE entry is %p\n",ancestor_pte[PTE(fault_address)]);
-
- //    printk("catch_pte_fault tables indexes are: %d - %d - %d - %d\n",PML4(fault_address),PDP(fault_address),PDE(fault_address),PTE(fault_address));
-    
-    //printk("catch_pte_fault:PGDIR_SIZE %d -PTRS_PER_PGD %d -\n",PGDIR_SIZE,PTRS_PER_PGD);
-    //printk("catch_pte_fault:PMD_SIZE %d -PTRS_PER_PMD %d -\n",PMD_SIZE,PTRS_PER_PMD);
-    //printk("catch_pte_fault:PAGE_SIZE %d -PTRS_PER_PTE %d -\n",PAGE_SIZE,PTRS_PER_PTE);
-
 				for ( i = 0; i < PTRS_PER_PGD ; ++i) {
 					if ( scanned_pml4[i] != NULL ) {
 
@@ -451,7 +433,7 @@ static long multi_view_ioctl(struct file *filp, unsigned int cmd, unsigned long 
 					 	 	scanned_pde = __va((ulong)scanned_pdp[e] & 0xfffffffffffff000);
 							
 								
-								printk("Slot PDE %d : %p\n",e, scanned_pde);					
+								printk("    Slot PDE %d : %p\n",e, scanned_pde);					
 
 					 			for ( t = 0; t < PTRS_PER_PTE ; ++t) {
 								
@@ -461,9 +443,9 @@ static long multi_view_ioctl(struct file *filp, unsigned int cmd, unsigned long 
     	
 
 
-    	printk("CHK: tables indexes are: %d - %d - %d\n",i,e,t);
+    	//printk("CHK: tables indexes are: %d - %d - %d--->%p\n",i,e,t,scanned_pte);
 					
-     	printk("CHK%s:  target checkpointing PTE is: %p\n",KBUILD_MODNAME,scanned_pte);
+     	//printk("CHK%s:  target checkpointing PTE is: %p\n",KBUILD_MODNAME,scanned_pte);
 							}
 
 					 			}//end for PTE
@@ -1054,7 +1036,7 @@ void catch_pte_fault(void * fault_address)
 	void ** scanned_pte;
 	void ** ancestor_pte;
 
-	int i = 0;
+	//int i = 0;
 	//int j = 0;	
 	ancestor_pml4 = (void**)current->mm->pgd;
 	ancestor_pdp = __va((ulong)ancestor_pml4[PML4(fault_address)] & 0xfffffffffffff000); 		
@@ -1075,9 +1057,71 @@ void catch_pte_fault(void * fault_address)
     //printk("catch_pte_fault:PMD_SIZE %d -PTRS_PER_PMD %d -\n",PMD_SIZE,PTRS_PER_PMD);
     //printk("catch_pte_fault:PAGE_SIZE %d -PTRS_PER_PTE %d -\n",PAGE_SIZE,PTRS_PER_PTE);
 
-	for ( i = 0; i <= PTRS_PER_PTE ; ++i) //PTE(fault_address)
-	{
-		scanned_pte = __va((ulong)ancestor_pde[i] & 0xfffffffffffff000);
+
+
+
+
+
+				int i,e,t,d;
+				void ** sscanned_pml4;
+				void ** sscanned_pdp;
+				void ** sscanned_pde;
+				void ** sscanned_pte;
+				//void ** scanned_pte;
+	//int j = 0;	
+				sscanned_pml4 = (void**)current->mm->pgd;
+
+				for ( i = 0; i < PTRS_PER_PGD ; ++i) {
+					if ( sscanned_pml4[i] != NULL ) {
+
+					sscanned_pdp = __va((ulong)sscanned_pml4[i] & 0xfffffffffffff000);
+					
+
+						printk("Slot PDP %d : %p\n",i, sscanned_pdp);					
+					  	
+					  	for ( e = 0; e < PTRS_PER_PMD ; ++e) {
+
+					  		if ( sscanned_pdp[e] != NULL ) {
+
+					 	 	sscanned_pde = __va((ulong)sscanned_pdp[e] & 0xfffffffffffff000);
+							
+								
+								printk("    Slot PDE %d : %p\n",e, sscanned_pde);					
+
+					 			for ( t = 0; t < PTRS_PER_PTE ; ++t) {
+								
+								if ( sscanned_pde[t]  != NULL ) {
+							
+					 				sscanned_pte = __va((ulong)sscanned_pde[t] & 0xfffffffffffff000);
+    	
+
+
+    	//printk("CHK: tables indexes are: %d - %d - %d--->%p\n",i,e,t,scanned_pte);
+					
+     	//printk("CHK%s:  target checkpointing PTE is: %p\n",KBUILD_MODNAME,scanned_pte);
+							}
+
+					 			}//end for PTE
+					 		}//end if PMD
+					 	}//end for PMD
+					}//end IF PDP
+				}//end for PGD
+
+
+
+
+
+
+
+
+
+
+
+
+
+	//for ( i = 0; i <= PTRS_PER_PTE ; ++i) //PTE(fault_address)
+	//{
+	//	scanned_pte = __va((ulong)ancestor_pde[i] & 0xfffffffffffff000);
 		//if ( scanned_pte[i] != NULL )
 			//printk("Slot PTE %d : %p\n",i, scanned_pte[i]);
 		
@@ -1090,7 +1134,7 @@ void catch_pte_fault(void * fault_address)
 
 	//	if ( i == PTE(fault_address)) {
 	//		printk("Fault on index %d\n",PTE(fault_address));				
-	}	
+	//}	
 /*    for ( i = 0; i <= PTRS_PER_PMD ; ++i) //PTE(fault_address)
     {
 		scanned_pdp = __va((ulong)ancestor_pdp[i] & 0xfffffffffffff000);
