@@ -44,6 +44,8 @@
 #include <asm/tlbflush.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>//mine
+#include <linux/proc_fs.h>
+#include <linux/pid.h>//end
 #include <asm/cacheflush.h>
 #include <linux/uaccess.h>
 #include <linux/syscalls.h>
@@ -394,9 +396,16 @@ static long multi_view_ioctl(struct file *filp, unsigned int cmd, unsigned long 
 
                 //target_process = arg;
                 //Start Checkpointing
+                struct pid *pid_struct;
+                struct task_struct *t_task;
+                struct mm_struct *t_mm;
 
-
-
+				pid_struct = find_get_pid(arg);
+				t_task = pid_task(pid_struct, PIDTYPE_PID );
+                printk("%s: target checkpointing task is: %s\n",KBUILD_MODNAME,t_task->comm);
+				
+				t_mm = get_task_mm(t_task);
+                printk("%s: target checkpointing PML4 is: %p\n",KBUILD_MODNAME,t_mm->pgd);
 
 
 
@@ -821,6 +830,8 @@ int multi_view_page_fault(struct pt_regs* regs, long error_code, long realign_mo
 			MV_FAULT_DEBUG
 			printk("PDE entry is %p\n",ancestor_pd[PDE(target_address)]);
 
+            catch_pte_fault((void *) target_address);//my_patch
+
 			if(ancestor_pd[PDE(target_address)] == NULL){ 
 
 				MV_FAULT_DEBUG
@@ -828,7 +839,6 @@ int multi_view_page_fault(struct pt_regs* regs, long error_code, long realign_mo
 				return WATCHDOG_NORMAL_FAULT;
 			}
 			//empty zero memory fault - pass it to the classical do_page_fault handler
-            catch_pte_fault((void *) target_address);//my_patch
 
 			if( ((ulong)ancestor_pd[PDE(target_address)] & 0x081) ){
 
@@ -984,6 +994,8 @@ void catch_pte_fault(void * fault_address)
 	ancestor_pte = __va((ulong)ancestor_pde[PDE(fault_address)] & 0xfffffffffffff000); 		
 
     printk("catch_pte_fault fault addr %p\n", fault_address);
+	printk("catch_pte_fault PML4 Base is %p\n",ancestor_pml4);
+
 	printk("catch_pte_fault PML4 entry is %p\n",ancestor_pml4[PML4(fault_address)]);
 	printk("catch_pte_fault PDP entry is %p\n",ancestor_pdp[PDP(fault_address)]);
 	printk("catch_pte_fault PDE entry is %p\n",ancestor_pde[PDE(fault_address)]);
@@ -998,9 +1010,15 @@ void catch_pte_fault(void * fault_address)
 	for ( i = 0; i <= PTRS_PER_PTE ; ++i) //PTE(fault_address)
 	{
 		scanned_pte = __va((ulong)ancestor_pde[i] & 0xfffffffffffff000);
-		if ( scanned_pte[i] != NULL )
+		//if ( scanned_pte[i] != NULL )
 			//printk("Slot PTE %d : %p\n",i, scanned_pte[i]);
-			printk("Slot PTE %d : %p , contenuto %s\n",i, scanned_pte[i],&scanned_pte[i]);
+		
+
+
+		//	printk("Slot PTE %d : %p , contenuto %s\n",i, scanned_pte[i],&scanned_pte[i]);
+
+	
+
 
 	//	if ( i == PTE(fault_address)) {
 	//		printk("Fault on index %d\n",PTE(fault_address));				
