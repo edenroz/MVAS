@@ -402,11 +402,79 @@ static long multi_view_ioctl(struct file *filp, unsigned int cmd, unsigned long 
 
 				pid_struct = find_get_pid(arg);
 				t_task = pid_task(pid_struct, PIDTYPE_PID );
-                printk("%s: target checkpointing task is: %s\n",KBUILD_MODNAME,t_task->comm);
+                printk("CHK%s: target checkpointing task is: %s\n",KBUILD_MODNAME,t_task->comm);
 				
 				t_mm = get_task_mm(t_task);
-                printk("%s: target checkpointing PML4 is: %p\n",KBUILD_MODNAME,t_mm->pgd);
+                printk("CHK%s: target checkpointing PML4 is: %p\n",KBUILD_MODNAME,t_mm->pgd);
+				
+				down_read(&t_mm->mmap_sem);
 
+                int i,e,t,d;
+				void ** scanned_pml4;
+				void ** scanned_pdp;
+				void ** scanned_pde;
+				void ** scanned_pte;
+				//void ** scanned_pte;
+	//int j = 0;	
+				scanned_pml4 = (void**)t_mm->pgd;
+
+	// ancestor_pdp = __va((ulong)ancestor_pml4[PML4(fault_address)] & 0xfffffffffffff000); 		
+	// ancestor_pde = __va((ulong)ancestor_pdp[PDP(fault_address)] & 0xfffffffffffff000); 		
+	// ancestor_pte = __va((ulong)ancestor_pde[PDE(fault_address)] & 0xfffffffffffff000); 		
+
+ //    printk("catch_pte_fault fault addr %p\n", fault_address);
+	// printk("catch_pte_fault PML4 Base is %p\n",ancestor_pml4);
+
+	// printk("catch_pte_fault PML4 entry is %p\n",ancestor_pml4[PML4(fault_address)]);
+	// printk("catch_pte_fault PDP entry is %p\n",ancestor_pdp[PDP(fault_address)]);
+	// printk("catch_pte_fault PDE entry is %p\n",ancestor_pde[PDE(fault_address)]);
+	// printk("catch_pte_fault PTE entry is %p\n",ancestor_pte[PTE(fault_address)]);
+
+ //    printk("catch_pte_fault tables indexes are: %d - %d - %d - %d\n",PML4(fault_address),PDP(fault_address),PDE(fault_address),PTE(fault_address));
+    
+    //printk("catch_pte_fault:PGDIR_SIZE %d -PTRS_PER_PGD %d -\n",PGDIR_SIZE,PTRS_PER_PGD);
+    //printk("catch_pte_fault:PMD_SIZE %d -PTRS_PER_PMD %d -\n",PMD_SIZE,PTRS_PER_PMD);
+    //printk("catch_pte_fault:PAGE_SIZE %d -PTRS_PER_PTE %d -\n",PAGE_SIZE,PTRS_PER_PTE);
+
+				for ( i = 0; i < PTRS_PER_PGD ; ++i) {
+					if ( scanned_pml4[i] != NULL ) {
+
+					scanned_pdp = __va((ulong)scanned_pml4[i] & 0xfffffffffffff000);
+					
+
+						printk("Slot PDP %d : %p\n",i, scanned_pdp);					
+					  	
+					  	for ( e = 0; e < PTRS_PER_PMD ; ++e) {
+
+					  		if ( scanned_pdp[e] != NULL ) {
+
+					 	 	scanned_pde = __va((ulong)scanned_pdp[e] & 0xfffffffffffff000);
+							
+								
+								printk("Slot PDE %d : %p\n",e, scanned_pde);					
+
+					 			for ( t = 0; t < PTRS_PER_PTE ; ++t) {
+								
+								if ( scanned_pde[t]  != NULL ) {
+							
+					 				scanned_pte = __va((ulong)scanned_pde[t] & 0xfffffffffffff000);
+    	
+
+
+    	printk("CHK: tables indexes are: %d - %d - %d\n",i,e,t);
+					
+     	printk("CHK%s:  target checkpointing PTE is: %p\n",KBUILD_MODNAME,scanned_pte);
+							}
+
+					 			}//end for PTE
+					 		}//end if PMD
+					 	}//end for PMD
+					}//end IF PDP
+				}//end for PGD
+
+
+				up_read(&t_mm->mmap_sem);
+				mmput(t_mm);
 
 
 
